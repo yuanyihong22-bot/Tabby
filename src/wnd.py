@@ -32,8 +32,21 @@ class Window:
         self._hotkey.register(self.hwnd)
         self._install_event_hooks()
         self._update_tooltip()
+        self._show_startup_balloon()
         self._win32.pump_messages()
         return 0
+
+    def _show_startup_balloon(self) -> None:
+        if self._hotkey.hotkey_registered:
+            self._win32.show_balloon(
+                self.hwnd, "Excel 置顶已启动",
+                f"按 Win+Ctrl+{self._hotkey.current_key} 切换置顶，右键托盘退出",
+            )
+        else:
+            self._win32.show_balloon(
+                self.hwnd, "Excel 置顶已启动（热键未注册）",
+                "快捷键被占用，请右键托盘查看",
+            )
 
     def request_exit(self) -> None:
         self._win32.post_quit_message()

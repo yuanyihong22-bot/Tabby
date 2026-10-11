@@ -15,8 +15,10 @@ from ctypes import wintypes
 
 import win32api
 import win32con
+import win32event
 import win32gui
 import win32process
+import winerror
 
 # ---------------------------------------------------------------------------
 # 常量（re-export，供业务模块统一从本模块取值）
@@ -94,6 +96,11 @@ WINEVENT_SKIPOWNPROCESS = 0x0002
 EVENT_SYSTEM_FOREGROUND = 0x0003
 EVENT_OBJECT_DESTROY = 0x8001
 OBJID_WINDOW = 0x00000000
+
+# 单实例 / 托盘气泡
+ERROR_ALREADY_EXISTS = winerror.ERROR_ALREADY_EXISTS  # 183
+NIF_INFO = 0x10
+NIIF_INFO = 0x1
 
 
 # ---------------------------------------------------------------------------
@@ -330,3 +337,65 @@ def track_popup_menu(menu: int, flags: int, x: int, y: int, hwnd: int) -> int:
 
 def destroy_menu(menu: int) -> None:
     win32gui.DestroyMenu(menu)
+
+
+# ---------------------------------------------------------------------------
+# 单实例 / 提示框 / 托盘气泡
+# ---------------------------------------------------------------------------
+
+_mutex_handles: dict[str, object] = {}
+
+
+def create_mutex(name: str) -> bool:
+    """创建命名互斥体用于单实例检测。返回 True 表示已存在（即本进程非首个实例）。
+
+    句柄保存在模块级，进程存活期间不释放，从而保证互斥体一直有效。
+    """
+    handle = win32event.CreateMutex(None, False, name)
+    _mutex_handles[name] = handle
+    return win32api.GetLastError() == ERROR_ALREADY_EXISTS
+
+
+def message_box(text: str, title: str) -> int:
+    return win32gui.MessageBox(0, text, title, win32con.MB_OK | win32con.MB_ICONINFORMATION)
+
+
+# --- 托盘气泡（ctypes 直调 Shell_NotifyIconW，pywin32 的 tuple 接口不带标题字段） ---
+
+_shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+
+
+class _NOTIFYICONDATAW(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.DWORD),
+        ("hWnd", wintypes.HWND),
+        ("uID", wintypes.UINT),
+        ("uFlags", wintypes.UINT),
+        ("uCallbackMessage", wintypes.UINT),
+        ("hIcon", wintypes.HICON),
+        ("szTip", wintypes.WCHAR * 128),
+        ("dwState", wintypes.DWORD),
+        ("dwStateMask", wintypes.DWORD),
+        ("szInfo", wintypes.WCHAR * 256),
+        ("uTimeout", wintypes.UINT),
+        ("szInfoTitle", wintypes.WCHAR * 64),
+        ("dwInfoFlags", wintypes.DWORD),
+    ]
+
+
+_shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(_NOTIFYICONDATAW)]
+_shell32.Shell_NotifyIconW.restype = wintypes.BOOL
+
+
+def show_balloon(hwnd: int, title: str, text: str) -> bool:
+    """在托盘图标上弹一个气泡提示（NIM_MODIFY + NIF_INFO）。"""
+    nid = _NOTIFYICONDATAW()
+    nid.cbSize = ctypes.sizeof(_NOTIFYICONDATAW)
+    nid.hWnd = hwnd
+    nid.uID = 1
+    nid.uFlags = NIF_INFO
+    nid.szInfo = text
+    nid.szInfoTitle = title
+    nid.uTimeout = 5000
+    nid.dwInfoFlags = NIIF_INFO
+    return bool(_shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(nid)))

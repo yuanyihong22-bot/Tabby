@@ -29,6 +29,11 @@ def cleanup(pinner: Pinner, hotkey: Hotkey, tray: Tray, wnd: Window | None = Non
 
 
 def main() -> int:
+    if win32.create_mutex("ExcelPinTool.SingleInstance"):
+        # 已有实例在运行：提示后直接退出，避免重复进程互相抢占热键
+        win32.message_box("Excel 置顶已在运行。\n请查看右下角任务栏托盘图标。", "Excel 置顶")
+        return 0
+
     excel = ExcelTracker(win32)
     pinner = Pinner(win32, is_alive=excel.is_alive)
     hotkey = Hotkey(win32)

@@ -80,6 +80,11 @@ class FakeWin32:
         self.hotkey_results: list[bool] = []
         # 托盘菜单返回值
         self.menu_result = 0
+        # 单实例互斥体返回值（True = 已存在）
+        self.mutex_already_exists = False
+        self.mutex_names: list[str] = []
+        self.messages_shown: list[tuple] = []
+        self.balloons: list[tuple] = []
 
     # ---- 记录辅助 ----
     def _rec(self, name, *args):
@@ -190,6 +195,22 @@ class FakeWin32:
 
     def destroy_menu(self, menu):
         self._rec("destroy_menu", menu)
+
+    # ---- 单实例 / 提示 / 气泡 ----
+    def create_mutex(self, name):
+        self._rec("create_mutex", name)
+        self.mutex_names.append(name)
+        return self.mutex_already_exists
+
+    def message_box(self, text, title):
+        self._rec("message_box", text, title)
+        self.messages_shown.append((text, title))
+        return 1
+
+    def show_balloon(self, hwnd, title, text):
+        self._rec("show_balloon", hwnd, title, text)
+        self.balloons.append((hwnd, title, text))
+        return True
 
     # ---- 消息循环 ----
     def register_class(self, class_name, message_map):

@@ -68,3 +68,29 @@ def test_status_text_when_hotkey_not_registered(win32):
     wnd._hotkey.hotkey_registered = False
 
     assert wnd._status_text() == "热键未注册"
+
+
+def test_startup_balloon_when_registered(win32):
+    wnd, pinner, excel, _ = make_window(win32)
+    wnd.hwnd = 0x1234
+    wnd._hotkey.hotkey_registered = True
+    wnd._hotkey.current_key = "T"
+
+    wnd._show_startup_balloon()
+
+    assert len(win32.balloons) == 1
+    hwnd, title, text = win32.balloons[0]
+    assert hwnd == 0x1234
+    assert title == "Excel 置顶已启动"
+    assert "Win+Ctrl+T" in text
+
+
+def test_startup_balloon_when_not_registered(win32):
+    wnd, pinner, excel, _ = make_window(win32)
+    wnd.hwnd = 0x1234
+    wnd._hotkey.hotkey_registered = False
+
+    wnd._show_startup_balloon()
+
+    assert len(win32.balloons) == 1
+    assert "热键未注册" in win32.balloons[0][1]
