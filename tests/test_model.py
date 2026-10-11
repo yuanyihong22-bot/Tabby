@@ -52,3 +52,17 @@ def test_apply_text_replaces():
     m = TableModel([["old"]])
     m.apply_text("x\ty\n1\t2")
     assert m.rows == [["x", "y"], ["1", "2"]]
+
+
+def test_clear():
+    m = TableModel([["a", "b"], ["c", "d"]])
+    m.clear()
+    assert m.rows == []
+
+
+def test_apply_text_mutates_in_place():
+    # 外部持有同一列表引用时，apply_text 不应断开引用
+    shared = [["old"]]
+    m = TableModel(shared)
+    m.apply_text("a\tb")
+    assert shared == [["a", "b"]]

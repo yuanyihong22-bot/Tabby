@@ -36,8 +36,12 @@ class TableModel:
         return _pad_rows(raw)
 
     def apply_text(self, text: str) -> None:
-        """用解析结果替换当前数据。"""
-        self.rows = self.parse_text(text)
+        """用解析结果替换当前数据（原地替换，保持与外部引用的共享）。"""
+        self.rows[:] = self.parse_text(text)
+
+    def clear(self) -> None:
+        """清空表格。"""
+        self.rows[:] = []
 
 
 def _pad_rows(raw: List[List[str]]) -> List[List[str]]:
