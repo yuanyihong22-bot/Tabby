@@ -37,7 +37,7 @@ launcher.py  打包入口（from src.main import main）
 
 - 内部表示：`rows: list[list[str]]`。
 - 解析：按 `\n` 分行、按 `\t` 分列；列数不一致以最长行补空串；去末尾空行。**不做 CSV 逗号回退**（单列表格按「每行一个单元格」处理）。
-- `apply_text` / `clear` 用 `self.rows[:] = ...` 原地替换，保持与 `data.rows` 的共享引用。
+- `apply_text` / `clear` / `append_text` 用原地操作保持与 `data.rows` 的共享引用；`append_text` 把新内容追加到表格下方并重新补齐列宽。
 
 ### 4.2 小组件窗口
 
@@ -55,7 +55,7 @@ launcher.py  打包入口（from src.main import main）
 
 ### 4.4 直接粘贴
 
-- Ctrl+V（root 绑定）或右键 → 粘贴：`clipboard_get()` 读剪贴板 → `apply_text` → 重绘 → 保存。
+- Ctrl+V（root 绑定）或右键 → 粘贴：`clipboard_get()` 读剪贴板 → `append_text`（追加到下方，列宽自动补齐）→ 重绘 → 保存。
 - 剪贴板为空 / 非文本时忽略（捕获 `TclError`）。
 
 ### 4.5 持久化

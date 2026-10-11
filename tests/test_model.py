@@ -66,3 +66,27 @@ def test_apply_text_mutates_in_place():
     m = TableModel(shared)
     m.apply_text("a\tb")
     assert shared == [["a", "b"]]
+
+
+def test_append_text():
+    m = TableModel([["a", "b"], ["1", "2"]])
+    m.append_text("x\ty\n3\t4")
+    assert m.rows == [["a", "b"], ["1", "2"], ["x", "y"], ["3", "4"]]
+
+
+def test_append_text_widens_existing():
+    m = TableModel([["a", "b"]])
+    m.append_text("x\ty\tz")
+    assert m.rows == [["a", "b", ""], ["x", "y", "z"]]
+
+
+def test_append_text_narrower_new():
+    m = TableModel([["a", "b", "c"]])
+    m.append_text("x")
+    assert m.rows == [["a", "b", "c"], ["x", "", ""]]
+
+
+def test_append_empty_text_noop():
+    m = TableModel([["a"]])
+    m.append_text("")
+    assert m.rows == [["a"]]

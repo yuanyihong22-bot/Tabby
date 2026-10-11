@@ -183,7 +183,7 @@ class Widget:
         if n_rows == 0 or n_cols == 0:
             self.canvas.create_text(
                 (ROW_HDR_W + total_w) // 2, (COL_HDR_H + total_h) // 2, anchor="center",
-                text="在 Excel 复制表格后\n点这里按 Ctrl+V 粘贴",
+                text="在 Excel 复制表格后\nCtrl+V 粘贴（追加到下面）",
                 fill="#999999", font=(FONT_FAMILY, 11), justify="center",
             )
             self.root.update_idletasks()
@@ -351,7 +351,7 @@ class Widget:
             return
         if text:
             self._selection = None
-            self.model.apply_text(text)
+            self.model.append_text(text)
             self._redraw()
             self.storage.save(self.data)
 

@@ -43,6 +43,23 @@ class TableModel:
         """清空表格。"""
         self.rows[:] = []
 
+    def append_text(self, text: str) -> None:
+        """解析新内容并追加到现有表格下方（原地，不丢旧数据）。"""
+        new_rows = self.parse_text(text)
+        if not new_rows:
+            return
+        self.rows.extend(new_rows)
+        self._repad()
+
+    def _repad(self) -> None:
+        """把所有行补齐到一致列宽。"""
+        if not self.rows:
+            return
+        max_cols = max(len(r) for r in self.rows)
+        for i in range(len(self.rows)):
+            if len(self.rows[i]) < max_cols:
+                self.rows[i] = self.rows[i] + [""] * (max_cols - len(self.rows[i]))
+
 
 def _pad_rows(raw: List[List[str]]) -> List[List[str]]:
     # 去掉末尾完全为空的行（粘贴常带结尾换行）
