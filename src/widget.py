@@ -1,4 +1,4 @@
-"""桌面小组件窗口：Excel 样式表格、直接粘贴、点选复制、右键菜单。"""
+"""桌面小组件窗口：Excel 样式表格、框选复制、点击单格复制、直接粘贴。"""
 
 from __future__ import annotations
 
@@ -30,7 +30,8 @@ HDR_FG = "#404040"
 GRID_COLOR = "#d4d4d4"
 CELL_BG = "#ffffff"
 TEXT_COLOR = "#1a1a1a"
-HIGHLIGHT_COLOR = "#cce8ff"
+HIGHLIGHT_COLOR = "#cce8ff"   # 框选 / 复制反馈的浅蓝填充
+SELECTION_BORDER = "#2f6fd6"  # 框选蓝色边框
 
 
 def _col_letter(n: int) -> str:
@@ -64,6 +65,9 @@ class Widget:
         self._col_offsets: list[int] = []
         self._drag_off_x = 0
         self._drag_off_y = 0
+        self._selection: tuple[int, int, int, int] | None = None  # (r1, c1, r2, c2)
+        self._anchor: tuple[int, int] | None = None               # 鼠标按下处
+        self._dragging = False
         self._font = tkfont.Font(family=FONT_FAMILY, size=FONT_SIZE)
         self._font_hdr = tkfont.Font(family=FONT_FAMILY, size=HDR_FONT_SIZE)
 
@@ -90,12 +94,13 @@ class Widget:
 
         # 右键菜单
         self.menu = tk.Menu(root, tearoff=0)
+        self.menu.add_command(label="复制", command=self._copy_selection)
         self.menu.add_command(label="粘贴", command=self._on_paste)
         self.menu.add_command(label="清空", command=self._on_clear)
         self.menu.add_separator()
         self.menu.add_command(label="退出", command=self._quit)
 
-        # 事件
+        # 拖柄：移动窗口
         self.header.bind("<Button-1>", self._on_drag_start)
         self.header.bind("<B1-Motion>", self._on_drag)
         self.header.bind("<ButtonRelease-1>", self._on_drag_end)
@@ -104,10 +109,18 @@ class Widget:
         title.bind("<B1-Motion>", self._on_drag)
         title.bind("<ButtonRelease-1>", self._on_drag_end)
         title.bind("<Button-3>", self._on_right_click)
-        self.canvas.bind("<Button-1>", self._on_click)
+
+        # 表格区：点选 / 框选
+        self.canvas.bind("<Button-1>", self._on_mouse_down)
+        self.canvas.bind("<B1-Motion>", self._on_mouse_move)
+        self.canvas.bind("<ButtonRelease-1>", self._on_mouse_up)
         self.canvas.bind("<Button-3>", self._on_right_click)
+
+        # 快捷键
         root.bind("<Control-v>", self._on_paste)
         root.bind("<Control-V>", self._on_paste)
+        root.bind("<Control-c>", self._copy_selection)
+        root.bind("<Control-C>", self._copy_selection)
 
         self._redraw()
 
@@ -176,6 +189,25 @@ class Widget:
             self.root.update_idletasks()
             return
 
+        # 第一遍：单元格底色 + 网格
+        for r in range(n_rows):
+            y0 = COL_HDR_H + r * ROW_H
+            for c in range(n_cols):
+                x0 = ROW_HDR_W + self._col_offsets[c]
+                w = self._col_widths[c]
+                self.canvas.create_rectangle(x0, y0, x0 + w, y0 + ROW_H, fill=CELL_BG, outline=GRID_COLOR)
+
+        # 框选浅蓝填充（覆盖在底色之上、文本之下）
+        if self._selection is not None:
+            r1, c1, r2, c2 = self._selection
+            if r1 < n_rows and c1 < n_cols:
+                sx0 = ROW_HDR_W + self._col_offsets[c1]
+                sy0 = COL_HDR_H + r1 * ROW_H
+                sx1 = ROW_HDR_W + self._col_offsets[c2] + self._col_widths[c2]
+                sy1 = COL_HDR_H + (r2 + 1) * ROW_H
+                self.canvas.create_rectangle(sx0, sy0, sx1, sy1, fill=HIGHLIGHT_COLOR, outline=GRID_COLOR)
+
+        # 第二遍：文本（在填充之上）
         for r in range(n_rows):
             y0 = COL_HDR_H + r * ROW_H
             for c in range(n_cols):
@@ -183,13 +215,23 @@ class Widget:
                 w = self._col_widths[c]
                 raw = self.model.cell(r, c)
                 text = self._truncate(raw, w - 2 * CELL_PAD)
-                self.canvas.create_rectangle(x0, y0, x0 + w, y0 + ROW_H, fill=CELL_BG, outline=GRID_COLOR)
                 if _is_number(raw):
                     self.canvas.create_text(x0 + w - CELL_PAD, y0 + ROW_H // 2, anchor="e",
                                             text=text, fill=TEXT_COLOR, font=self._font)
                 else:
                     self.canvas.create_text(x0 + CELL_PAD, y0 + ROW_H // 2, anchor="w",
                                             text=text, fill=TEXT_COLOR, font=self._font)
+
+        # 框选蓝色边框
+        if self._selection is not None:
+            r1, c1, r2, c2 = self._selection
+            if r1 < n_rows and c1 < n_cols:
+                sx0 = ROW_HDR_W + self._col_offsets[c1]
+                sy0 = COL_HDR_H + r1 * ROW_H
+                sx1 = ROW_HDR_W + self._col_offsets[c2] + self._col_widths[c2]
+                sy1 = COL_HDR_H + (r2 + 1) * ROW_H
+                self.canvas.create_rectangle(sx0, sy0, sx1, sy1, outline=SELECTION_BORDER, width=2)
+
         self.root.update_idletasks()
 
     def _truncate(self, text: str, max_px: int) -> str:
@@ -201,15 +243,67 @@ class Widget:
             text = text[:-1]
         return text + "…"
 
-    # ---- 交互 ----
+    # ---- 点选 / 框选 ----
 
-    def _on_click(self, event) -> None:
+    def _on_mouse_down(self, event) -> None:
         self.root.focus_force()
         r, c = self._hit_test(event.x, event.y)
         if r is None or c is None:
+            self._anchor = None
             return
-        self._copy_to_clipboard(self.model.cell(r, c))
-        self._flash_cell(r, c)
+        self._anchor = (r, c)
+        self._dragging = False
+
+    def _on_mouse_move(self, event) -> None:
+        if self._anchor is None:
+            return
+        r, c = self._hit_test(event.x, event.y)
+        if r is None or c is None:
+            return
+        if (r, c) != self._anchor:
+            self._dragging = True
+            self._selection = self._normalize(self._anchor, (r, c))
+            self._redraw()
+
+    def _on_mouse_up(self, event) -> None:
+        anchor = self._anchor
+        self._anchor = None
+        if anchor is None:
+            return
+        r, c = self._hit_test(event.x, event.y)
+        if self._dragging:
+            # 框选结束：保留选中区域，不自动复制
+            self._dragging = False
+            if r is not None and c is not None:
+                self._selection = self._normalize(anchor, (r, c))
+                self._redraw()
+            return
+        # 单击：复制该格，并清除旧框选
+        if r is not None and c is not None and (r, c) == anchor:
+            self._selection = None
+            self._redraw()
+            self._copy_to_clipboard(self.model.cell(r, c))
+            self._flash_cell(r, c)
+
+    @staticmethod
+    def _normalize(a: tuple[int, int], b: tuple[int, int]) -> tuple[int, int, int, int]:
+        r1, c1 = a
+        r2, c2 = b
+        return (min(r1, r2), min(c1, c2), max(r1, r2), max(c1, c2))
+
+    def _selection_text(self) -> str:
+        if self._selection is None:
+            return ""
+        r1, c1, r2, c2 = self._selection
+        return "\n".join(
+            "\t".join(self.model.cell(r, c) for c in range(c1, c2 + 1))
+            for r in range(r1, r2 + 1)
+        )
+
+    def _copy_selection(self, event=None) -> None:
+        if self._selection is None:
+            return
+        self._copy_to_clipboard(self._selection_text())
 
     def _hit_test(self, x: int, y: int):
         if x < ROW_HDR_W or y < COL_HDR_H:
@@ -248,20 +342,26 @@ class Widget:
                                     text=text, fill=TEXT_COLOR, font=self._font)
         self.root.after(300, self._redraw)
 
+    # ---- 粘贴 / 清空 ----
+
     def _on_paste(self, event=None) -> None:
         try:
             text = self.root.clipboard_get()
         except tk.TclError:
             return
         if text:
+            self._selection = None
             self.model.apply_text(text)
             self._redraw()
             self.storage.save(self.data)
 
     def _on_clear(self) -> None:
+        self._selection = None
         self.model.clear()
         self._redraw()
         self.storage.save(self.data)
+
+    # ---- 拖动窗口 ----
 
     def _on_drag_start(self, event) -> None:
         self._drag_off_x = self.root.winfo_pointerx() - self.root.winfo_x()
