@@ -4,7 +4,7 @@
 
 ## 使用
 
-1. 启动：`uv run python src/main.py`
+1. 启动：`uv run python -m src.main`（或 `uv run python launcher.py`）
 2. 桌面上会出现一个小便签窗口。
 3. 右键 → 编辑，从 Excel 复制表格后粘贴（Tab 分列、换行分行），点「应用」。
 4. 左键点任意单元格 → 复制其内容到剪贴板，到别处 Ctrl+V 即可。
