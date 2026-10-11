@@ -1,0 +1,12 @@
+[project]
+name = "table-sticky-note"
+version = "0.1.0"
+description = "桌面表格便签：把表格数据贴成桌面小组件，点单元格即可复制"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
