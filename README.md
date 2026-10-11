@@ -24,8 +24,9 @@
 # 安装依赖
 uv sync
 
-# 开发运行
-uv run python src/main.py
+# 运行（二选一）
+uv run excel-pin            # 推荐：通过入口命令
+uv run python -m src.main   # 等价：以包模块方式运行
 ```
 
 > 若热键 `Win+Ctrl+T` 被其他程序占用，程序会依次尝试备用键；仍失败时托盘会提示换键。
