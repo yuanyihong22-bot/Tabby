@@ -9,18 +9,20 @@ from .model import TableModel
 from .storage import Storage, TableData
 
 # 布局
-DRAG_H = 18          # 顶部拖柄高度
-COL_HDR_H = 22       # 列标题（A/B/C）行高
-ROW_HDR_W = 36       # 行标题（1/2/3）列宽
-ROW_H = 24           # 数据行高
-CELL_PAD = 8
-COL_MIN_W = 70
-MAX_CELL_W = 220
+DRAG_H = 22          # 顶部拖柄高度
+COL_HDR_H = 26       # 列标题（A/B/C）行高
+ROW_HDR_W = 46       # 行标题（1/2/3）列宽
+ROW_H = 30           # 数据行高
+CELL_PAD = 10
+COL_MIN_W = 90
+MAX_CELL_W = 260
+EMPTY_MIN_W = 260    # 空表时数据区最小宽
+EMPTY_MIN_H = 100    # 空表时数据区最小高
 
 # 配色（Excel 风格）
 FONT_FAMILY = "Microsoft YaHei"
-FONT_SIZE = 10
-HDR_FONT_SIZE = 9
+FONT_SIZE = 12
+HDR_FONT_SIZE = 10
 DRAG_BG = "#e9e9e9"
 DRAG_FG = "#7a7a7a"
 HDR_BG = "#f0f0f0"
@@ -78,7 +80,7 @@ class Widget:
         self.header.pack_propagate(False)
         title = tk.Label(
             self.header, text="表格便签", bg=DRAG_BG, fg=DRAG_FG,
-            font=(FONT_FAMILY, 8),
+            font=(FONT_FAMILY, 9),
         )
         title.pack(side="left", padx=8)
 
@@ -127,6 +129,10 @@ class Widget:
 
         data_w = sum(self._col_widths) if self._col_widths else COL_MIN_W
         data_h = n_rows * ROW_H if n_rows else ROW_H
+        if n_cols == 0:
+            data_w = max(data_w, EMPTY_MIN_W)
+        if n_rows == 0:
+            data_h = max(data_h, EMPTY_MIN_H)
         total_w = data_w + ROW_HDR_W
         total_h = data_h + COL_HDR_H
         self.canvas.configure(width=total_w, height=total_h)
@@ -142,8 +148,8 @@ class Widget:
 
         # 列标题（A/B/C…）
         if n_cols == 0:
-            self.canvas.create_rectangle(ROW_HDR_W, 0, ROW_HDR_W + COL_MIN_W, COL_HDR_H, fill=HDR_BG, outline=GRID_COLOR)
-            self.canvas.create_text(ROW_HDR_W + COL_MIN_W // 2, COL_HDR_H // 2, text="A", fill=HDR_FG, font=self._font_hdr)
+            self.canvas.create_rectangle(ROW_HDR_W, 0, total_w, COL_HDR_H, fill=HDR_BG, outline=GRID_COLOR)
+            self.canvas.create_text((ROW_HDR_W + total_w) // 2, COL_HDR_H // 2, text="A", fill=HDR_FG, font=self._font_hdr)
         else:
             for c in range(n_cols):
                 x0 = ROW_HDR_W + self._col_offsets[c]
@@ -153,9 +159,8 @@ class Widget:
 
         # 行标题（1/2/3…）
         if n_rows == 0:
-            y0 = COL_HDR_H
-            self.canvas.create_rectangle(0, y0, ROW_HDR_W, y0 + ROW_H, fill=HDR_BG, outline=GRID_COLOR)
-            self.canvas.create_text(ROW_HDR_W // 2, y0 + ROW_H // 2, text="1", fill=HDR_FG, font=self._font_hdr)
+            self.canvas.create_rectangle(0, COL_HDR_H, ROW_HDR_W, total_h, fill=HDR_BG, outline=GRID_COLOR)
+            self.canvas.create_text(ROW_HDR_W // 2, (COL_HDR_H + total_h) // 2, text="1", fill=HDR_FG, font=self._font_hdr)
         else:
             for r in range(n_rows):
                 y0 = COL_HDR_H + r * ROW_H
@@ -164,9 +169,9 @@ class Widget:
 
         if n_rows == 0 or n_cols == 0:
             self.canvas.create_text(
-                ROW_HDR_W + 12, COL_HDR_H + 12, anchor="nw",
-                text="在 Excel 复制后，点这里按 Ctrl+V 粘贴",
-                fill="#999999", font=(FONT_FAMILY, 9),
+                (ROW_HDR_W + total_w) // 2, (COL_HDR_H + total_h) // 2, anchor="center",
+                text="在 Excel 复制表格后\n点这里按 Ctrl+V 粘贴",
+                fill="#999999", font=(FONT_FAMILY, 11), justify="center",
             )
             self.root.update_idletasks()
             return
