@@ -31,6 +31,16 @@ uv run python -m src.main   # 等价：以包模块方式运行
 
 > 若热键 `Win+Ctrl+T` 被其他程序占用，程序会依次尝试备用键；仍失败时托盘会提示换键。
 
+## 打包为 exe
+
+```bash
+uv add --dev pyinstaller
+uv run pyinstaller --onefile --noconsole --name excel-pin launcher.py
+# 产物在 dist/excel-pin.exe，双击即可运行
+```
+
+> 代码使用相对导入，PyInstaller 不能直接打包 `src/main.py`，需经根目录 `launcher.py` 以包方式导入。
+
 ## 测试
 
 ```bash
