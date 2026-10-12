@@ -339,10 +339,10 @@ class Widget:
                 self._redraw()
             return
         if r is not None and c is not None and (r, c) == anchor:
-            self._selection = None
+            # 单击：选中该格（1×1）并复制；之后 Delete 可清除该格内容
+            self._selection = (r, c, r, c)
             self._redraw()
             self._copy_to_clipboard(self.model.cell(r, c))
-            self._flash_cell(r, c)
 
     @staticmethod
     def _normalize(a: tuple[int, int], b: tuple[int, int]) -> tuple[int, int, int, int]:
@@ -413,21 +413,6 @@ class Widget:
             self.root.update_idletasks()
         except tk.TclError:
             pass
-
-    def _flash_cell(self, r: int, c: int) -> None:
-        x0 = ROW_HDR_W + self._col_offsets[c]
-        y0 = COL_HDR_H + r * ROW_H
-        w = self._col_widths[c]
-        raw = self.model.cell(r, c)
-        text = self._truncate(raw, w - 2 * CELL_PAD)
-        self.canvas.create_rectangle(x0, y0, x0 + w, y0 + ROW_H, fill=HIGHLIGHT_COLOR, outline=GRID_COLOR)
-        if _is_number(raw):
-            self.canvas.create_text(x0 + w - CELL_PAD, y0 + ROW_H // 2, anchor="e",
-                                    text=text, fill=TEXT_COLOR, font=self._font)
-        else:
-            self.canvas.create_text(x0 + CELL_PAD, y0 + ROW_H // 2, anchor="w",
-                                    text=text, fill=TEXT_COLOR, font=self._font)
-        self.root.after(300, self._redraw)
 
     # ---- 粘贴 / 清空 ----
 
