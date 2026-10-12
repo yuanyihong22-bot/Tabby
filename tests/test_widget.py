@@ -1,5 +1,5 @@
 from src.model import TableModel
-from src.widget import Widget, _col_letter, _is_number
+from src.widget import Widget, _clamp_font_size, _col_letter, _is_number
 
 
 def test_col_letter():
@@ -16,6 +16,14 @@ def test_is_number():
     assert not _is_number("")
     assert not _is_number("苹果")
     assert not _is_number("3.5元")
+
+
+def test_clamp_font_size():
+    assert _clamp_font_size(12) == 12
+    assert _clamp_font_size(1) == 8
+    assert _clamp_font_size(999) == 40
+    assert _clamp_font_size(8) == 8
+    assert _clamp_font_size(40) == 40
 
 
 def test_normalize():
