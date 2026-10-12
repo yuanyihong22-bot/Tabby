@@ -29,6 +29,8 @@ def _make_widget(rows):
     w = Widget.__new__(Widget)
     w.model = TableModel(rows)
     w._selection = None
+    w._row_sel = None
+    w._col_sel = None
     return w
 
 
@@ -41,3 +43,27 @@ def test_selection_text():
 def test_selection_text_none():
     w = _make_widget([["a"]])
     assert w._selection_text() == ""
+
+
+def test_selection_text_row():
+    w = _make_widget([["a", "b", "c"], ["1", "2", "3"]])
+    w._row_sel = 1
+    assert w._selection_text() == "1\t2\t3"
+
+
+def test_selection_text_col():
+    w = _make_widget([["a", "b", "c"], ["1", "2", "3"]])
+    w._col_sel = 1
+    assert w._selection_text() == "b\n2"
+
+
+def test_highlight_rects_row_and_col():
+    w = _make_widget([["a", "b", "c"], ["1", "2", "3"], ["x", "y", "z"]])
+    w._row_sel = 0
+    w._col_sel = None
+    w._selection = None
+    assert w._highlight_rects() == [(0, 0, 0, 2)]
+
+    w._row_sel = None
+    w._col_sel = 2
+    assert w._highlight_rects() == [(0, 2, 2, 2)]

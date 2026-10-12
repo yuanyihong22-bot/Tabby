@@ -63,6 +63,12 @@ launcher.py  打包入口（from src.main import main）
 - 路径：`%APPDATA%\TableStickyNote\table.json`；结构 `{"rows": [...], "window": {"x": .., "y": ..}}`。
 - 启动加载；粘贴 / 清空 / 拖动结束 / 退出时保存；JSON 损坏回退空表。
 
+### 4.6 行列选中与删除
+
+- 点行号（`_hit_header` 命中 `x < ROW_HDR_W`）→ 选中整行；点列标题 → 选中整列。
+- `Delete` 键（root 绑定）→ `delete_rows` / `delete_cols`（整行/整列移除，列宽 `_repad` 补齐）；框选时 → `clear_range` 清空内容。
+- 高亮统一走 `_highlight_rects()`，把框选 / 整行 / 整列都归一成矩形列表渲染。
+
 ## 5. 目录结构
 
 ```

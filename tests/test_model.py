@@ -90,3 +90,33 @@ def test_append_empty_text_noop():
     m = TableModel([["a"]])
     m.append_text("")
     assert m.rows == [["a"]]
+
+
+def test_delete_rows():
+    m = TableModel([["a", "b"], ["c", "d"], ["e", "f"]])
+    m.delete_rows(1, 1)
+    assert m.rows == [["a", "b"], ["e", "f"]]
+
+
+def test_delete_rows_multiple():
+    m = TableModel([["a"], ["b"], ["c"], ["d"]])
+    m.delete_rows(0, 2)
+    assert m.rows == [["d"]]
+
+
+def test_delete_cols():
+    m = TableModel([["a", "b", "c"], ["1", "2", "3"]])
+    m.delete_cols(1, 1)
+    assert m.rows == [["a", "c"], ["1", "3"]]
+
+
+def test_delete_cols_multiple():
+    m = TableModel([["a", "b", "c", "d"]])
+    m.delete_cols(0, 2)
+    assert m.rows == [["d"]]
+
+
+def test_clear_range():
+    m = TableModel([["a", "b", "c"], ["1", "2", "3"]])
+    m.clear_range(0, 1, 1, 2)
+    assert m.rows == [["a", "", ""], ["1", "", ""]]

@@ -60,6 +60,25 @@ class TableModel:
             if len(self.rows[i]) < max_cols:
                 self.rows[i] = self.rows[i] + [""] * (max_cols - len(self.rows[i]))
 
+    def delete_rows(self, r1: int, r2: int) -> None:
+        """删除第 r1..r2 行（含两端）。"""
+        if not self.rows or r1 >= len(self.rows):
+            return
+        del self.rows[r1:r2 + 1]
+        self._repad()
+
+    def delete_cols(self, c1: int, c2: int) -> None:
+        """删除第 c1..c2 列（含两端）。"""
+        for row in self.rows:
+            del row[c1:c2 + 1]
+        self._repad()
+
+    def clear_range(self, r1: int, c1: int, r2: int, c2: int) -> None:
+        """清空矩形范围内的内容（保留结构）。"""
+        for r in range(r1, min(r2 + 1, len(self.rows))):
+            for c in range(c1, min(c2 + 1, len(self.rows[r]))):
+                self.rows[r][c] = ""
+
 
 def _pad_rows(raw: List[List[str]]) -> List[List[str]]:
     # 去掉末尾完全为空的行（粘贴常带结尾换行）

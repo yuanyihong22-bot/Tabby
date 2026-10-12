@@ -1,4 +1,4 @@
-"""桌面小组件窗口：Excel 样式表格、框选复制、点击单格复制、直接粘贴。"""
+"""桌面小组件窗口：Excel 样式表格、框选复制、点行号/列标题选中整行整列、Delete 删除、直接粘贴。"""
 
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ HDR_FG = "#404040"
 GRID_COLOR = "#d4d4d4"
 CELL_BG = "#ffffff"
 TEXT_COLOR = "#1a1a1a"
-HIGHLIGHT_COLOR = "#cce8ff"   # 框选 / 复制反馈的浅蓝填充
-SELECTION_BORDER = "#2f6fd6"  # 框选蓝色边框
+HIGHLIGHT_COLOR = "#cce8ff"   # 选中浅蓝填充
+SELECTION_BORDER = "#2f6fd6"  # 选中蓝色边框
 
 
 def _col_letter(n: int) -> str:
@@ -65,8 +65,10 @@ class Widget:
         self._col_offsets: list[int] = []
         self._drag_off_x = 0
         self._drag_off_y = 0
-        self._selection: tuple[int, int, int, int] | None = None  # (r1, c1, r2, c2)
-        self._anchor: tuple[int, int] | None = None               # 鼠标按下处
+        self._selection: tuple[int, int, int, int] | None = None  # 框选 (r1,c1,r2,c2)
+        self._row_sel: int | None = None                          # 选中的整行
+        self._col_sel: int | None = None                          # 选中的整列
+        self._anchor: tuple[int, int] | None = None
         self._dragging = False
         self._font = tkfont.Font(family=FONT_FAMILY, size=FONT_SIZE)
         self._font_hdr = tkfont.Font(family=FONT_FAMILY, size=HDR_FONT_SIZE)
@@ -92,7 +94,7 @@ class Widget:
         self.canvas = tk.Canvas(root, highlightthickness=0, bg=CELL_BG)
         self.canvas.pack(fill="both", expand=True)
 
-        # 右键菜单
+        # 右键菜单（不含删除行列，删除走 Delete 键）
         self.menu = tk.Menu(root, tearoff=0)
         self.menu.add_command(label="复制", command=self._copy_selection)
         self.menu.add_command(label="粘贴", command=self._on_paste)
@@ -110,7 +112,7 @@ class Widget:
         title.bind("<ButtonRelease-1>", self._on_drag_end)
         title.bind("<Button-3>", self._on_right_click)
 
-        # 表格区：点选 / 框选
+        # 表格区：点选 / 框选 / 点行号列标题
         self.canvas.bind("<Button-1>", self._on_mouse_down)
         self.canvas.bind("<B1-Motion>", self._on_mouse_move)
         self.canvas.bind("<ButtonRelease-1>", self._on_mouse_up)
@@ -121,6 +123,7 @@ class Widget:
         root.bind("<Control-V>", self._on_paste)
         root.bind("<Control-c>", self._copy_selection)
         root.bind("<Control-C>", self._copy_selection)
+        root.bind("<Delete>", self._on_delete)
 
         self._redraw()
 
@@ -197,15 +200,12 @@ class Widget:
                 w = self._col_widths[c]
                 self.canvas.create_rectangle(x0, y0, x0 + w, y0 + ROW_H, fill=CELL_BG, outline=GRID_COLOR)
 
-        # 框选浅蓝填充（覆盖在底色之上、文本之下）
-        if self._selection is not None:
-            r1, c1, r2, c2 = self._selection
-            if r1 < n_rows and c1 < n_cols:
-                sx0 = ROW_HDR_W + self._col_offsets[c1]
-                sy0 = COL_HDR_H + r1 * ROW_H
-                sx1 = ROW_HDR_W + self._col_offsets[c2] + self._col_widths[c2]
-                sy1 = COL_HDR_H + (r2 + 1) * ROW_H
-                self.canvas.create_rectangle(sx0, sy0, sx1, sy1, fill=HIGHLIGHT_COLOR, outline=GRID_COLOR)
+        # 选中填充（框选 / 整行 / 整列）
+        for rect in self._highlight_rects():
+            pr = self._cell_rect(*rect)
+            if pr is not None:
+                x0, y0, x1, y1 = pr
+                self.canvas.create_rectangle(x0, y0, x1, y1, fill=HIGHLIGHT_COLOR, outline=GRID_COLOR)
 
         # 第二遍：文本（在填充之上）
         for r in range(n_rows):
@@ -222,17 +222,43 @@ class Widget:
                     self.canvas.create_text(x0 + CELL_PAD, y0 + ROW_H // 2, anchor="w",
                                             text=text, fill=TEXT_COLOR, font=self._font)
 
-        # 框选蓝色边框
-        if self._selection is not None:
-            r1, c1, r2, c2 = self._selection
-            if r1 < n_rows and c1 < n_cols:
-                sx0 = ROW_HDR_W + self._col_offsets[c1]
-                sy0 = COL_HDR_H + r1 * ROW_H
-                sx1 = ROW_HDR_W + self._col_offsets[c2] + self._col_widths[c2]
-                sy1 = COL_HDR_H + (r2 + 1) * ROW_H
-                self.canvas.create_rectangle(sx0, sy0, sx1, sy1, outline=SELECTION_BORDER, width=2)
+        # 选中边框
+        for rect in self._highlight_rects():
+            pr = self._cell_rect(*rect)
+            if pr is not None:
+                x0, y0, x1, y1 = pr
+                self.canvas.create_rectangle(x0, y0, x1, y1, outline=SELECTION_BORDER, width=2)
 
         self.root.update_idletasks()
+
+    def _highlight_rects(self):
+        """返回需要高亮的矩形列表 (r1, c1, r2, c2)。"""
+        n_rows = self.model.num_rows
+        n_cols = self.model.num_cols
+        rects = []
+        if self._row_sel is not None and self._row_sel < n_rows and n_cols > 0:
+            rects.append((self._row_sel, 0, self._row_sel, n_cols - 1))
+        if self._col_sel is not None and self._col_sel < n_cols and n_rows > 0:
+            rects.append((0, self._col_sel, n_rows - 1, self._col_sel))
+        if self._selection is not None:
+            rects.append(self._selection)
+        return rects
+
+    def _cell_rect(self, r1: int, c1: int, r2: int, c2: int):
+        """把单元格矩形 (r1,c1,r2,c2) 转成画布像素矩形，越界则返回 None。"""
+        n_rows = self.model.num_rows
+        n_cols = self.model.num_cols
+        if n_rows == 0 or n_cols == 0:
+            return None
+        if r1 >= n_rows or c1 >= n_cols or r2 < 0 or c2 < 0:
+            return None
+        r1 = max(0, r1); c1 = max(0, c1)
+        r2 = min(r2, n_rows - 1); c2 = min(c2, n_cols - 1)
+        x0 = ROW_HDR_W + self._col_offsets[c1]
+        y0 = COL_HDR_H + r1 * ROW_H
+        x1 = ROW_HDR_W + self._col_offsets[c2] + self._col_widths[c2]
+        y1 = COL_HDR_H + (r2 + 1) * ROW_H
+        return (x0, y0, x1, y1)
 
     def _truncate(self, text: str, max_px: int) -> str:
         if max_px <= 0:
@@ -243,16 +269,51 @@ class Widget:
             text = text[:-1]
         return text + "…"
 
-    # ---- 点选 / 框选 ----
+    # ---- 点选 / 框选 / 行列选中 ----
+
+    def _hit_header(self, x: int, y: int):
+        """命中表头区域：返回 ("row", r) / ("col", c) / ("corner", None) / None。"""
+        if y < COL_HDR_H:
+            if x < ROW_HDR_W:
+                return ("corner", None)
+            for i in range(len(self._col_offsets)):
+                x0 = ROW_HDR_W + self._col_offsets[i]
+                if x0 <= x < x0 + self._col_widths[i]:
+                    return ("col", i)
+            return None
+        if x < ROW_HDR_W:
+            r = (y - COL_HDR_H) // ROW_H
+            if 0 <= r < self.model.num_rows:
+                return ("row", r)
+            return None
+        return None
 
     def _on_mouse_down(self, event) -> None:
         self.root.focus_force()
+        hdr = self._hit_header(event.x, event.y)
+        if hdr is not None:
+            kind, idx = hdr
+            self._anchor = None
+            self._dragging = False
+            if kind == "row" and idx is not None:
+                self._row_sel = idx
+                self._col_sel = None
+                self._selection = None
+                self._redraw()
+            elif kind == "col" and idx is not None:
+                self._col_sel = idx
+                self._row_sel = None
+                self._selection = None
+                self._redraw()
+            return
         r, c = self._hit_test(event.x, event.y)
         if r is None or c is None:
             self._anchor = None
             return
         self._anchor = (r, c)
         self._dragging = False
+        self._row_sel = None
+        self._col_sel = None
 
     def _on_mouse_move(self, event) -> None:
         if self._anchor is None:
@@ -272,13 +333,11 @@ class Widget:
             return
         r, c = self._hit_test(event.x, event.y)
         if self._dragging:
-            # 框选结束：保留选中区域，不自动复制
             self._dragging = False
             if r is not None and c is not None:
                 self._selection = self._normalize(anchor, (r, c))
                 self._redraw()
             return
-        # 单击：复制该格，并清除旧框选
         if r is not None and c is not None and (r, c) == anchor:
             self._selection = None
             self._redraw()
@@ -292,18 +351,46 @@ class Widget:
         return (min(r1, r2), min(c1, c2), max(r1, r2), max(c1, c2))
 
     def _selection_text(self) -> str:
-        if self._selection is None:
+        if self._row_sel is not None:
+            r = self._row_sel
+            if r < self.model.num_rows:
+                return "\t".join(self.model.cell(r, c) for c in range(self.model.num_cols))
             return ""
-        r1, c1, r2, c2 = self._selection
-        return "\n".join(
-            "\t".join(self.model.cell(r, c) for c in range(c1, c2 + 1))
-            for r in range(r1, r2 + 1)
-        )
+        if self._col_sel is not None:
+            c = self._col_sel
+            if c < self.model.num_cols:
+                return "\n".join(self.model.cell(r, c) for r in range(self.model.num_rows))
+            return ""
+        if self._selection is not None:
+            r1, c1, r2, c2 = self._selection
+            return "\n".join(
+                "\t".join(self.model.cell(r, c) for c in range(c1, c2 + 1))
+                for r in range(r1, r2 + 1)
+            )
+        return ""
 
     def _copy_selection(self, event=None) -> None:
-        if self._selection is None:
-            return
-        self._copy_to_clipboard(self._selection_text())
+        text = self._selection_text()
+        if text:
+            self._copy_to_clipboard(text)
+
+    def _on_delete(self, event=None) -> None:
+        if self._row_sel is not None:
+            self.model.delete_rows(self._row_sel, self._row_sel)
+            self._row_sel = None
+            self._redraw()
+            self.storage.save(self.data)
+        elif self._col_sel is not None:
+            self.model.delete_cols(self._col_sel, self._col_sel)
+            self._col_sel = None
+            self._redraw()
+            self.storage.save(self.data)
+        elif self._selection is not None:
+            r1, c1, r2, c2 = self._selection
+            self.model.clear_range(r1, c1, r2, c2)
+            self._selection = None
+            self._redraw()
+            self.storage.save(self.data)
 
     def _hit_test(self, x: int, y: int):
         if x < ROW_HDR_W or y < COL_HDR_H:
@@ -351,12 +438,16 @@ class Widget:
             return
         if text:
             self._selection = None
+            self._row_sel = None
+            self._col_sel = None
             self.model.append_text(text)
             self._redraw()
             self.storage.save(self.data)
 
     def _on_clear(self) -> None:
         self._selection = None
+        self._row_sel = None
+        self._col_sel = None
         self.model.clear()
         self._redraw()
         self.storage.save(self.data)
