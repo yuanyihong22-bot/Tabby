@@ -117,7 +117,7 @@ class Widget:
         self.header.pack_propagate(False)
 
         self.title = tk.Label(
-            self.header, text="表格便签", bg=DRAG_BG, fg=DRAG_FG,
+            self.header, text="Tabby", bg=DRAG_BG, fg=DRAG_FG,
             font=(FONT_FAMILY, 9), cursor="fleur",
         )
         self.title.pack(side="left", padx=8)
@@ -528,7 +528,7 @@ class Widget:
         self._feedback_id = self.root.after(800, self._reset_title)
 
     def _reset_title(self) -> None:
-        self.title.configure(text="表格便签", fg=DRAG_FG)
+        self.title.configure(text="Tabby", fg=DRAG_FG)
         self._feedback_id = None
 
     # ---- 字号缩放 ----

@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Optional
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-APP_NAME = "TableStickyNote"
+APP_NAME = "Tabby"
 
 
 def exe_command() -> Optional[str]:
-    """返回要注册的命令：打包后是自身 exe；开发模式回退到 dist/table-note.exe。"""
+    """返回要注册的命令：打包后是自身 exe；开发模式回退到 dist/tabby.exe。"""
     if getattr(sys, "frozen", False):
         return sys.executable
-    candidate = Path(__file__).resolve().parent.parent / "dist" / "table-note.exe"
+    candidate = Path(__file__).resolve().parent.parent / "dist" / "tabby.exe"
     if candidate.exists():
         return str(candidate)
     return None

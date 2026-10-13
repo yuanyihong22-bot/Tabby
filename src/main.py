@@ -1,4 +1,4 @@
-"""桌面表格便签入口：管理多个便签窗口。"""
+"""Tabby 桌面表格便签入口：管理多个便签窗口。"""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ class WidgetManager:
         self.widgets: dict[int, Widget] = {}
 
     def start(self) -> None:
+        storage_mod.migrate_old_dir()
         storage_mod.Storage.migrate_legacy()
         ids = storage_mod.Storage.list_ids()
         if not ids:

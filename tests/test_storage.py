@@ -115,3 +115,14 @@ def test_delete_file(tmp_path, monkeypatch):
     assert s.path.exists()
     s.delete_file()
     assert not s.path.exists()
+
+
+def test_migrate_old_dir(tmp_path, monkeypatch):
+    import src.storage as sm
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    old = tmp_path / "TableStickyNote"
+    old.mkdir()
+    (old / "note_1.json").write_text('{"rows": [["x"]]}', encoding="utf-8")
+    assert sm.migrate_old_dir() is True
+    assert (tmp_path / "Tabby" / "note_1.json").exists()
+    assert not old.exists()

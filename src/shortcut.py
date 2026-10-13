@@ -7,14 +7,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-SHORTCUT_NAME = "表格便签.lnk"
+SHORTCUT_NAME = "Tabby.lnk"
 
 
 def exe_path() -> Optional[str]:
-    """返回要指向的 exe：打包后是自身；开发模式回退到 dist/table-note.exe。"""
+    """返回要指向的 exe：打包后是自身；开发模式回退到 dist/tabby.exe。"""
     if getattr(sys, "frozen", False):
         return sys.executable
-    candidate = Path(__file__).resolve().parent.parent / "dist" / "table-note.exe"
+    candidate = Path(__file__).resolve().parent.parent / "dist" / "tabby.exe"
     if candidate.exists():
         return str(candidate)
     return None

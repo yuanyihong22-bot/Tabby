@@ -26,8 +26,21 @@ class TableData:
 def base_dir() -> Path:
     base = os.environ.get("APPDATA")
     if base:
-        return Path(base) / "TableStickyNote"
-    return Path.home() / ".table_sticky_note"
+        return Path(base) / "Tabby"
+    return Path.home() / ".tabby"
+
+
+def migrate_old_dir() -> bool:
+    """把旧版数据目录 TableStickyNote 重命名为 Tabby（仅当新目录不存在）。"""
+    base = os.environ.get("APPDATA")
+    if not base:
+        return False
+    old = Path(base) / "TableStickyNote"
+    new = Path(base) / "Tabby"
+    if old.exists() and not new.exists():
+        old.rename(new)
+        return True
+    return False
 
 
 class Storage:

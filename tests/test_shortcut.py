@@ -3,7 +3,7 @@ from src import shortcut
 
 def test_exe_path_returns_dist_exe_in_dev():
     p = shortcut.exe_path()
-    assert p is None or p.endswith("table-note.exe")
+    assert p is None or p.endswith("tabby.exe")
 
 
 def test_ps_quote():
