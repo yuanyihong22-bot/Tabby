@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Optional
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -10,9 +11,12 @@ APP_NAME = "TableStickyNote"
 
 
 def exe_command() -> Optional[str]:
-    """返回要注册的命令；仅打包（冻结）后可用，脚本方式返回 None。"""
+    """返回要注册的命令：打包后是自身 exe；开发模式回退到 dist/table-note.exe。"""
     if getattr(sys, "frozen", False):
         return sys.executable
+    candidate = Path(__file__).resolve().parent.parent / "dist" / "table-note.exe"
+    if candidate.exists():
+        return str(candidate)
     return None
 
 

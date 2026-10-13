@@ -7,6 +7,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 
 from . import autostart
+from . import shortcut
 from .model import TableModel
 from .storage import Storage, TableData
 
@@ -589,10 +590,18 @@ class Widget:
                             font=(FONT_FAMILY, 11))
         cb.pack(padx=16, pady=(14, 4), anchor="w")
 
-        hint = "下次开机自动打开所有便签"
-        if not getattr(sys, "frozen", False):
-            hint = "开发模式下不可用；打包成 exe 后生效"
-        tk.Label(win, text=hint, fg="#888888", font=(FONT_FAMILY, 9)).pack(padx=16, pady=(0, 10), anchor="w")
+        tk.Label(win, text="下次开机自动打开所有便签", fg="#888888",
+                 font=(FONT_FAMILY, 9)).pack(padx=16, pady=(0, 10), anchor="w")
+
+        def make_shortcut():
+            if shortcut.create_desktop_shortcut():
+                btn_shortcut.configure(text="已创建 ✓")
+            else:
+                btn_shortcut.configure(text="创建失败")
+
+        btn_shortcut = tk.Button(win, text="创建桌面快捷方式", command=make_shortcut,
+                                 font=(FONT_FAMILY, 10))
+        btn_shortcut.pack(pady=(0, 10))
 
         tk.Button(win, text="关闭", command=win.destroy, font=(FONT_FAMILY, 10)).pack(pady=(0, 12))
 
